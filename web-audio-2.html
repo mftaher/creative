@@ -1,0 +1,185 @@
+<html>
+  <head>
+    <style>
+    #container {
+      width: 100%;
+      min-height: 100%;
+    }
+    </style>
+  </head>
+  <body>
+    <div id='container'>
+      <div class='center-box'>
+        <p>
+          Frequency: <span id="frequency">n/a</span>
+        </p>
+        <p>
+          Volume: <span id="volume">n/a</span>
+        </p>
+      </div>
+    </div>
+    
+    <script src='js/sketch.js'></script>
+    <script>
+      var SoundPad = (function() {
+        // Variables
+        var myCanvas, frequencyLabel, volumeLabel, myAudioContext, oscillator, gainNode, filter, color;
+
+        // Notes
+        var lowNote = 261.63, // C4
+            highNote = 493.88; // B4
+
+
+        // Constructor
+        var SoundPad = function() {
+          myCanvas = document.getElementById('container');
+          frequencyLabel = document.getElementById('frequency');
+          volumeLabel = document.getElementById('volume');
+  
+          // Create an audio context.
+          window.AudioContext = window.AudioContext||window.webkitAudioContext;
+          myAudioContext = new AudioContext();
+  
+          SoundPad.setupEventListeners();
+        };
+  
+  
+        // Event Listeners
+        SoundPad.setupEventListeners = function() {
+  
+          // Disables scrolling on touch devices.
+          document.body.addEventListener('touchmove', function(event) {
+            event.preventDefault();
+          }, false);
+  
+          myCanvas.addEventListener('mousedown', SoundPad.playSound);
+          myCanvas.addEventListener('touchstart', SoundPad.playSound);
+  
+          myCanvas.addEventListener('mouseup', SoundPad.stopSound);
+          myCanvas.addEventListener('mouseout', SoundPad.stopSound);
+          //document.addEventListener('mouseleave', SoundPad.stopSound);
+          myCanvas.addEventListener('touchend', SoundPad.stopSound);
+        };
+  
+  
+        // Play a note.
+        SoundPad.playSound = function(event) {
+          oscillator = myAudioContext.createOscillator();
+          gainNode = myAudioContext.createGainNode();
+  
+          oscillator.type = 'sine';
+          
+          //filter
+          filter = myAudioContext.createBiquadFilter();
+          filter.type = filter.PEAKING;
+          filter.frequency.value = 440;
+  
+          //connect it all
+          oscillator.connect(filter);
+          filter.connect(gainNode);
+          gainNode.connect(myAudioContext.destination);
+  
+          SoundPad.updateFrequency(event);
+  
+          oscillator.start(0);
+          
+          color = SoundPad.HSVtoRGB(Math.random(),1,1);
+          col = 'rgb(' + color.join(',') + ')';
+          myCanvas.style.backgroundColor = col;
+  
+          myCanvas.addEventListener('mousemove', SoundPad.updateFrequency);
+          myCanvas.addEventListener('touchmove', SoundPad.updateFrequency);
+  
+          myCanvas.addEventListener('mouseout', SoundPad.stopSound);
+        };
+  
+  
+        // Stop the audio.
+        SoundPad.stopSound = function(event) {
+          if(oscillator) {
+            oscillator.stop(0);
+          }
+          myCanvas.removeEventListener('mousemove', SoundPad.updateFrequency);
+          myCanvas.removeEventListener('touchmove', SoundPad.updateFrequency);
+          myCanvas.removeEventListener('mouseout', SoundPad.stopSound);
+        };
+   
+  
+        // Calculate the note frequency.
+        SoundPad.calculateNote = function(posX) {
+          var noteDifference = highNote - lowNote;
+          var noteOffset = (noteDifference / myCanvas.offsetWidth) * (posX - myCanvas.offsetLeft);
+          return lowNote + noteOffset;
+        };
+  
+  
+        // Calculate the volume.
+        SoundPad.calculateVolume = function(posY) {
+          var volumeLevel = 1 - (((100 / myCanvas.offsetHeight) * (posY - myCanvas.offsetTop)) / 100);
+          return volumeLevel;
+        };
+  
+  
+        // Fetch the new frequency and volume.
+        SoundPad.calculateFrequency = function(x, y) {
+          var noteValue = SoundPad.calculateNote(x);
+          var volumeValue = SoundPad.calculateVolume(y);
+  
+          oscillator.frequency.value = noteValue;
+          gainNode.gain.value = volumeValue;
+  
+          frequencyLabel.innerHTML = Math.floor(noteValue) + ' Hz';
+          volumeLabel.innerHTML = Math.floor(volumeValue * 100) + '%';
+        };
+  
+  
+        // Update the note frequency.
+        SoundPad.updateFrequency = function(event) {
+          
+          color = SoundPad.HSVtoRGB(Math.random(),1,1);
+          col = 'rgb(' + color.join(',') + ')';
+          myCanvas.style.backgroundColor = col;
+          
+          if (event.type == 'mousedown' || event.type == 'mousemove') {
+            SoundPad.calculateFrequency(event.x, event.y);
+          } else if (event.type == 'touchstart' || event.type == 'touchmove') {
+            var touch = event.touches[0];
+            SoundPad.calculateFrequency(touch.pageX, touch.pageY);
+          }
+        };
+        
+        SoundPad.HSVtoRGB =  function(h, s, v){
+          var r, g, b;
+
+          var i = Math.floor(h * 6);
+          var f = h * 6 - i;
+          var p = v * (1 - s);
+          var q = v * (1 - f * s);
+          var t = v * (1 - (1 - f) * s);
+
+          switch(i % 6){
+            case 0: r = v, g = t, b = p; break;
+            case 1: r = q, g = v, b = p; break;
+            case 2: r = p, g = v, b = t; break;
+            case 3: r = p, g = q, b = v; break;
+            case 4: r = t, g = p, b = v; break;
+            case 5: r = v, g = p, b = q; break;
+          }
+
+          return [Math.floor(r * 255), Math.floor(g * 255), Math.floor(b * 255)];
+        };
+  
+  
+        // Export SoundPad.
+        return SoundPad;
+      })();
+
+
+      // Initialize the page.
+      window.onload = function() {
+        var synthPad = new SoundPad();
+      }
+      
+    </script>
+  </body>
+</html>
